@@ -1,0 +1,26 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://localhost:password@localhost:5432/elasticsearch_tutorial"
+}
+
+model Movie {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(500)
+  description String?
+  releaseDate DateTime? @map("release_date") @db.Date
+  budget      BigInt?
+  collection  BigInt?
+  cast        String[]
+  isHit       Boolean  @default(false) @map("is_hit")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("movies")
+}
