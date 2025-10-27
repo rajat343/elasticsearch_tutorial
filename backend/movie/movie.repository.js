@@ -95,6 +95,12 @@ class MovieRepository {
 			},
 		});
 
+		// Index in Elasticsearch
+		const { indexMovie } = require("../lib/esMovies");
+		await indexMovie(row).catch((err) =>
+			console.error("Error indexing movie to ES:", err)
+		);
+
 		return serializeBigIntDeep(row);
 	}
 
@@ -123,12 +129,25 @@ class MovieRepository {
 			},
 		});
 
+		// Re-index in Elasticsearch
+		const { indexMovie } = require("../lib/esMovies");
+		await indexMovie(row).catch((err) =>
+			console.error("Error re-indexing movie to ES:", err)
+		);
+
 		return serializeBigIntDeep(row);
 	}
 
 	async remove(id) {
 		if (!id || isNaN(id)) return null;
 		const row = await prisma.movie.delete({ where: { id: parseInt(id) } });
+
+		// Delete from Elasticsearch
+		const { deleteMovie } = require("../lib/esMovies");
+		await deleteMovie(id).catch((err) =>
+			console.error("Error deleting movie from ES:", err)
+		);
+
 		return serializeBigIntDeep(row);
 	}
 }

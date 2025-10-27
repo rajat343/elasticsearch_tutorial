@@ -53,6 +53,12 @@ async function startServer() {
 		await prisma.$connect();
 		console.log("✅ Database connected successfully");
 
+		// Initialize Elasticsearch index
+		const { ensureIndex, INDEX } = require("./lib/esMovies");
+		console.log("🔍 Ensuring Elasticsearch index exists...");
+		await ensureIndex();
+		console.log(`✅ Elasticsearch index ready: ${INDEX}`);
+
 		// Push schema to database (creates tables if they don't exist)
 		console.log("📊 Ensuring database schema is up to date...");
 		// Note: In production, you'd use migrations instead of db push

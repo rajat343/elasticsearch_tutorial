@@ -62,16 +62,21 @@ This will insert all 250 movies from `data/movies_data.json`.
 -   `npm run db:push` - Push schema to database
 -   `npm run db:studio` - Open Prisma Studio (database GUI)
 -   `npm run data:insert` - Insert movie data from JSON
+-   `npm run es:index` - Index all movies to Elasticsearch (backfill)
 
 ## API Endpoints (Movies)
 
-### Movies (exactly 5 endpoints)
+### Movies
 
+-   `GET /api/movies/search` – **Search movies** (Elasticsearch full-text search)
+    -   Query params: `q` (search query), `page` (default: 1), `pageSize` (default: 25)
+    -   Searches across: title (boost: 3x), cast (boost: 2x), description (boost: 1.5x)
+    -   Example: `/api/movies/search?q=dark+knight&page=1&pageSize=10`
 -   `GET /api/movies` – Get all movies (pagination: 25 per page; `?page=2` → 26–50)
 -   `GET /api/movies/:id` – Get movie by ID
--   `POST /api/movies` – Create movie
--   `PUT /api/movies/:id` – Update movie
--   `DELETE /api/movies/:id` – Delete movie
+-   `POST /api/movies` – Create movie (auto-indexes to Elasticsearch)
+-   `PUT /api/movies/:id` – Update movie (auto-updates Elasticsearch)
+-   `DELETE /api/movies/:id` – Delete movie (auto-removes from Elasticsearch)
 
 ### Health Check
 
@@ -106,18 +111,57 @@ The application follows a clean architecture pattern:
 -   **Repository Layer** (`movie/movie.repository.js`) - Data access and sanitization
 -   **Prisma Model** (`prisma/schema.prisma`) - Prisma ORM schema
 
-## Elasticsearch (optional, for full-text search)
+## Elasticsearch Integration
 
-Install and run as a system service on macOS Apple Silicon:
+This backend includes full-text search powered by Elasticsearch.
+
+### Setup Elasticsearch on macOS (Homebrew)
+
+If you installed Elasticsearch via Homebrew, ensure it's running:
 
 ```bash
-brew tap elastic/tap
-brew install elastic/tap/elasticsearch-full
-sudo launchctl setenv ES_JAVA_HOME /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-sudo brew services start elastic/tap/elasticsearch-full
+brew services start elastic/tap/elasticsearch-full
+# or if using a different installation:
+brew services start elasticsearch
 
-# Verify
-curl -s "http://127.0.0.1:9200" | jq -r '.version.number + " " + .tagline'
+# Verify it's running
+curl http://localhost:9200
+```
+
+### Initial Setup
+
+After starting the server for the first time, the Elasticsearch index will be created automatically. To populate it with existing movies:
+
+```bash
+npm run es:index
+```
+
+This backfills all movies from PostgreSQL into Elasticsearch.
+
+### How it Works
+
+-   **Auto-sync**: All CRUD operations (create, update, delete) automatically sync with Elasticsearch
+-   **Search endpoint**: `GET /api/movies/search?q=your+query`
+-   **Index mapping**: Configured with English analyzer and custom field boosts
+-   **Fields searched**: title^3, cast^2, description^1.5 (higher boost = more relevance)
+
+### Elasticsearch Configuration
+
+-   **Index name**: `movies` (configurable via `ES_MOVIES_INDEX` env var)
+-   **Node URL**: `http://localhost:9200` (configurable via `ES_NODE` env var)
+-   **Analyzer**: Custom English analyzer with stopwords
+
+### Example Searches
+
+```bash
+# Search for movies with "dark knight" in title/description/cast
+curl "http://localhost:5000/api/movies/search?q=dark+knight"
+
+# Search for movies with "streep" in cast
+curl "http://localhost:5000/api/movies/search?q=streep&page=1&pageSize=5"
+
+# Search for movies about "survival"
+curl "http://localhost:5000/api/movies/search?q=survival"
 ```
 
 ## Prisma Benefits

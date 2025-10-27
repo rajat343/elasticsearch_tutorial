@@ -2,6 +2,35 @@ const express = require("express");
 const router = express.Router();
 const movieService = require("./movie.service");
 
+// GET /api/movies/search - Search movies using Elasticsearch
+router.get("/search", async (req, res) => {
+	try {
+		const q = (req.query.q || "").toString();
+		const page = Number(req.query.page) > 0 ? Number(req.query.page) : 1;
+		const pageSize =
+			Number(req.query.pageSize) > 0 ? Number(req.query.pageSize) : 25;
+
+		const { searchMovies } = require("../lib/esMovies");
+		const { results, total } = await searchMovies({ q, page, pageSize });
+
+		res.json({
+			success: true,
+			data: results,
+			total,
+			count: results.length,
+			page,
+			pageSize,
+		});
+	} catch (error) {
+		console.error("Error searching movies:", error);
+		res.status(500).json({
+			success: false,
+			message: "Error searching movies",
+			error: error.message,
+		});
+	}
+});
+
 // GET /api/movies - Get all movies with pagination (default page=1, size=25)
 router.get("/", async (req, res) => {
 	try {
